@@ -3123,6 +3123,319 @@ El valor-P reportado en la primer línea es < 2e-16, esto indica el modelo con H
 ---
 
 
+
+# Observaciones atípicas e influyentes en regresión
+
+Hasta ahora hemos visto cómo ajustar un modelo.  
+Pero una pregunta importante es:
+
+### ¿todas las observaciones afectan al modelo de la misma manera?
+
+La respuesta es **no**.
+
+Algunos datos pueden:
+
+- quedar muy mal ajustados por el modelo,
+- estar muy lejos del resto en la variable explicativa,
+- o incluso **cambiar bastante la recta estimada**.
+
+### Idea clave
+
+> En regresión, no solo importa el ajuste general,  
+> también importa si algunas observaciones están “jalando” el modelo.
+
+---
+
+# Tres conceptos que suelen confundirse
+
+
+.pull-left[
+
+### 1. Outlier
+Es una observación con un **residuo grande**.  
+Es decir, el modelo la predice mal.
+
+### 2. Leverage
+Es una observación con un valor de $(X)$ **muy extremo** respecto al resto.  
+Está “lejos” en la variable explicativa.
+
+### 3. Punto influyente
+Es una observación que, si se elimina, **cambia de forma importante** el modelo ajustado.
+
+]
+
+.pull-right[
+
+----
+
+### Ojo
+
+- Un **outlier** no siempre es influyente.
+- Un punto con **leverage alto** no siempre es influyente.
+- Un punto influyente suele combinar:
+  - posición extrema en \(X\),
+  - y capacidad de mover la recta.
+----
+
+]
+
+---
+
+# Intuición gráfica
+
+Pensemos en una nube de puntos:
+
+- Si un punto está muy separado en **vertical**, puede tener **residuo grande**.
+- Si un punto está muy separado en **horizontal**, puede tener **leverage alto**.
+- Si además “jala” la recta hacia él, entonces puede ser **influyente**.
+
+### Frase sencilla para recordar
+
+> **Outlier** = se ajusta mal  
+> **Leverage** = está lejos en $(X)$  
+> **Influyente** = cambia el modelo
+
+### Lo importante en la práctica
+
+No queremos eliminar observaciones “porque sí”.  
+Primero debemos **identificarlas, entenderlas y evaluar su efecto**.
+
+---
+
+# ¿Cómo detectarlos en R?
+
+
+.pull-left[
+
+Supongamos este modelo:
+
+```r
+library(ISLR)
+data(Auto)
+
+modelo <- lm(mpg ~ horsepower, data = Auto)
+summary(modelo)
+```
+
+### Algunas medidas útiles
+
+```r
+# Residuos estudentizados
+rstudent(modelo)
+
+# Leverage
+hatvalues(modelo)
+
+# Distancia de Cook
+cooks.distance(modelo)
+```
+
+]
+
+.pull-right[
+
+### ¿Qué mide cada una?
+
+- `rstudent(modelo)` → ayuda a detectar **outliers**
+- `hatvalues(modelo)` → ayuda a detectar **leverage alto**
+- `cooks.distance(modelo)` → ayuda a detectar **influencia**
+
+
+]
+
+---
+
+# Outliers: residuos estudentizados
+
+
+.pull-left[
+
+Los **residuos estudentizados** permiten ver qué observaciones  
+quedaron muy mal explicadas por el modelo.
+
+```r
+res_est <- rstudent(modelo)
+
+# Ver observaciones con residuos grandes
+which(abs(res_est) > 2)
+```
+
+### Regla práctica
+
+- Si \(|rstudent| > 2\), la observación merece revisión.
+- Si \(|rstudent| > 3\), la observación puede ser claramente atípica.
+
+]
+
+.pull-right[
+
+### Interpretación 
+
+Si una observación tiene residuo estudentizado grande, significa:
+
+> “el modelo esperaba un valor muy distinto al que realmente se observó”.
+
+### Ojo
+
+Un outlier puede ser raro en \(Y\),  
+pero eso **no implica automáticamente** que cambie mucho la recta.
+
+
+]
+
+---
+
+# Leverage e influencia
+
+
+.pull-left[
+
+### Leverage
+
+El leverage indica qué tan lejos está una observación en la variable \(X\).
+
+```r
+lev <- hatvalues(modelo)
+which(lev > 2 * mean(lev))
+```
+
+Una regla simple es revisar observaciones con:
+
+$$
+h_i > 2\frac{p}{n}
+$$
+
+donde:
+
+- \(p\) = número de parámetros del modelo (incluyendo intercepto)
+- \(n\) = número de observaciones
+
+
+]
+
+.pull-right[
+
+### Distancia de Cook
+
+La distancia de Cook resume cuánto cambia el modelo por una observación.
+
+```r
+cook <- cooks.distance(modelo)
+which(cook > 4 / length(cook))
+```
+
+### Interpretación 
+
+> Si Cook es grande, esa observación está “empujando” el modelo.
+
+
+]
+
+---
+
+# Ejemplo completo y conclusión
+
+
+
+.pull-left[
+
+Podemos reunir todo en una tabla simple:
+
+```r
+diagnostico <- data.frame(
+  mpg = Auto$mpg,
+  horsepower = Auto$horsepower,
+  residuo_est = rstudent(modelo),
+  leverage = hatvalues(modelo),
+  cook = cooks.distance(modelo)
+)
+
+head(diagnostico)
+```
+
+Y también ver los gráficos diagnósticos clásicos:
+
+```r
+par(mfrow = c(2,2))
+plot(modelo)
+```
+
+]
+
+
+.pull-right[
+
+
+### ¿Qué hacemos si encontramos puntos influyentes?
+
+- **No borrarlos automáticamente**
+- Revisar si hay error de digitación o medición
+- Evaluar si representan casos reales pero extremos
+- Comparar el modelo **con y sin** esas observaciones
+
+### Idea final
+
+> Un buen modelo no solo se ajusta bien;  
+> también debe ser **estable** y no depender excesivamente de unos pocos puntos.
+
+
+]
+
+---
+
+
+
+```{r, echo=FALSE, fig.width=10, fig.height=8, out.width='60%', fig.align='center'}
+
+library(ISLR)
+data(Auto)
+modelo <- lm(mpg ~ horsepower, data = Auto)
+
+par(mfrow = c(2,2), mar = c(4,4,2,1))
+plot(modelo)
+
+```
+
+
+---
+
+
+
+# Diagnóstico gráfico del modelo lineal
+
+.pull-left[
+
+### 1. Residuals vs Fitted
+Este gráfico sugiere que los residuos **no se distribuyen completamente al azar** alrededor de cero.  
+La curva roja muestra cierta forma, lo que indica posible **no linealidad** en la relación entre `horsepower` y `mpg`.
+
+### 2. Normal Q-Q
+Los puntos siguen relativamente bien la recta en la parte central, pero se desvían en los extremos.  
+Esto sugiere que los residuos son **aproximadamente normales**, aunque hay colas algo problemáticas y algunas observaciones extremas.
+
+]
+
+.pull-right[
+
+### 3. Scale-Location
+La dispersión de los residuos parece aumentar para algunos valores ajustados.  
+Esto puede ser una señal de **heterocedasticidad**, es decir, que la varianza del error no es completamente constante.
+
+### 4. Residuals vs Leverage
+La mayoría de observaciones tienen leverage bajo, pero algunas presentan valores más altos y podrían ser **influyentes**.  
+Estas observaciones merecen revisión porque pueden afectar la recta estimada.
+
+]
+
+---
+
+
+
+
+
+
+
+
 # Repaso de la regresión polinomial
 
 
@@ -3170,8 +3483,115 @@ ggplot(Auto, aes(x = horsepower, y = mpg)) +
 ```
 
 
+
 ---
 
+
+# ¿Cómo se interpretan los coeficientes en un modelo polinomial?
+
+Suponga el siguiente modelo cuadrático:
+
+$$\widehat{mpg} = \beta_0 + \beta_1 \, horsepower + \beta_2 \, horsepower^2$$
+
+### Interpretación de los coeficientes
+
+- **Intercepto $(\beta_0)$:** es el valor predicho de `mpg` cuando `horsepower = 0`.  
+  En la práctica, puede no tener interpretación económica directa si ese valor no es realista.
+
+- **Coeficiente lineal $(\beta_1)$:** ya **no** se interpreta solo como “el cambio en `mpg` por un caballo de fuerza adicional”, porque ahora el efecto depende también del término cuadrático.
+
+- **Coeficiente cuadrático $(\beta_2)$:** captura la **curvatura** de la relación.
+  - Si $\beta_2 > 0$, la curva se dobla hacia arriba.
+  - Si $\beta_2 < 0$, la curva se dobla hacia abajo.
+
+
+
+
+---
+
+# ¿Cómo se interpretan los coeficientes en un modelo polinomial?
+
+
+
+.pull-left[
+
+```{r, warning=FALSE, message=FALSE, eval=TRUE, echo=FALSE, fig.height=4}
+
+library(ISLR)
+attach(Auto)
+
+attach(Auto)
+modelo_lineal <- lm(formula = mpg ~ horsepower, data = Auto)
+
+
+modelo_pol2 <- lm(formula = mpg ~ horsepower + I(horsepower^2), data = Auto)
+# El uso de I() es necesario ya que el símbolo ^ tiene otra función dentro de las formula de R
+
+modelo_cuadratico <- lm(formula = mpg ~ poly(horsepower, 2), data = Auto)
+
+
+
+library(ggplot2)
+ggplot(Auto, aes(x = horsepower, y = mpg)) +
+    geom_point(colour = "grey") +
+    stat_smooth(method = "lm", formula = y ~ poly(x, 2), colour = "red") +
+    labs(title = "Consumo vs potencia motor") +
+    theme_bw()
+
+
+```
+
+]
+
+.pull-right[
+
+
+En un modelo cuadrático, el efecto marginal de `horsepower` sobre `mpg` es:
+
+$$\frac{d\widehat{mpg}}{d\,horsepower} = \beta_1 + 2\beta_2 \, horsepower$$
+
+Es decir, **el impacto de aumentar una unidad en `horsepower` no es constante**:depende del nivel actual de `horsepower`.
+
+----
+
+- La relación entre `horsepower` y `mpg` **no parece completamente lineal**.
+- A medida que cambia `horsepower`, también cambia la pendiente de la curva.
+- Por eso el modelo polinomial puede ajustarse mejor que la recta simple.
+
+]
+
+---
+
+
+# Interpretación del modelo polinomial estimado
+
+Hemos estimado el siguiente modelo:
+
+$$
+mpg_i = \beta_0 + \beta_1\,poly(horsepower,2)_1 + \beta_2\,poly(horsepower,2)_2 + \varepsilon_i
+$$
+
+- Intercepto = **23.4459**
+- Término polinomial 1 = **-120.1377** \((p<2e-16)\)
+- Término polinomial 2 = **44.0895** \((p<2e-16)\)
+
+#### ¿Qué nos dice este resultado?
+
+- El modelo es **estadísticamente significativo en conjunto**  
+  \((F = 428,\; p < 2.2e-16)\), por lo que `horsepower` aporta información relevante para explicar `mpg`.
+
+- Los **dos términos del polinomio son significativos**, lo cual indica que la relación entre potencia del motor y consumo **no es puramente lineal**.
+
+- El coeficiente del primer término polinomial es **negativo**, lo que sugiere una relación inicial **inversa**:
+  en general, cuando aumenta `horsepower`, el `mpg` tiende a disminuir.
+
+- El segundo término polinomial es **positivo**, lo que indica que la relación presenta **curvatura**.
+  Es decir, la pendiente entre `horsepower` y `mpg` **no es constante**, sino que cambia a lo largo del rango de valores.
+
+
+
+
+---
 
 
 # Regresión con variables categóricas
@@ -3440,11 +3860,461 @@ ggplot(nuevos_datos, aes(x=Edad, y=Resistencia))+
 
 
 
+---
 
+
+
+# Multicolinealidad en regresión múltiple
+
+Cuando trabajamos con varias variables explicativas, puede ocurrir que algunas de ellas estén **muy relacionadas entre sí**.
+
+A este problema se le llama **multicolinealidad**.
+
+### Idea general
+
+La multicolinealidad aparece cuando una variable explicativa puede ser explicada, en buena parte, por otras variables explicativas del modelo.
+
+### ¿Por qué importa?
+
+Porque dificulta identificar el efecto individual de cada predictor sobre la variable respuesta.
+
+> El modelo puede predecir bien, pero los coeficientes pueden volverse inestables y difíciles de interpretar.
+
+---
+
+# Intuición
+
+Suponga que queremos explicar `mpg` usando:
+
+- `weight`: peso del carro
+- `displacement`: tamaño/cilindraje del motor 
+- `horsepower`: potencia del motor
+
+El problema es que estas variables suelen moverse juntas:
+
+- autos más pesados suelen tener más desplazamiento,
+- autos con mayor desplazamiento suelen tener más potencia,
+- y muchas veces esas variables cuentan una parte parecida de la historia.
+
+### Entonces...
+
+Si dos variables entregan información muy parecida, el modelo tiene dificultad para “repartir” el efecto entre ellas.
+
+> Es como si dos estudiantes respondieran casi lo mismo en un trabajo grupal:  
+> sabemos que el grupo aportó, pero cuesta saber cuánto aportó cada uno.
+
+---
+
+# Señales típicas de multicolinealidad
+
+La multicolinealidad no siempre se detecta a simple vista, pero hay señales comunes:
+
+- coeficientes con signos raros o inesperados,
+- errores estándar grandes,
+- variables no significativas individualmente,
+- aunque el modelo global sí sea significativo,
+- cambios fuertes en coeficientes al agregar o quitar predictores.
+
+### Idea clave
+
+> La multicolinealidad no necesariamente daña la predicción,  
+> pero sí complica mucho la interpretación de los coeficientes.
+
+---
+
+# Ejemplo inicial en R
+
+Usaremos la base `Auto` del paquete `ISLR`.
+
+
+```{r}
+library(ISLR)
+data(Auto)
+
+modelo_multi <- lm(mpg ~ horsepower + weight + displacement, data = Auto)
+summary(modelo_multi)
+```
+
+---
+
+### ¿Qué queremos mirar?
+
+Queremos ver si algunas variables explicativas están tan relacionadas entre sí que dificultan la interpretación del modelo.
+
+---
+
+# Primer paso: mirar correlaciones entre predictores
+
+Una forma sencilla de empezar es revisar la matriz de correlaciones.
+
+
+```{r}
+vars_x <- Auto[, c("horsepower", "weight", "displacement")]
+cor(vars_x)
+```
+
+
+
+### Interpretación
+
+- Si la correlación entre dos predictores es alta, puede haber una alerta.
+- Correlaciones por encima de `0.7` o `0.8` suelen llamar la atención.
+
+### Ojo
+
+Una correlación alta entre dos variables **no prueba por sí sola** multicolinealidad severa,  
+pero sí sugiere revisar con más detalle.
+
+> La matriz de correlaciones es una primera alarma, no el diagnóstico final.
+
+---
+
+# Visualización rápida de relaciones entre predictores
+
+
+
+.pull-left[
+
+```{r, echo=FALSE, fig.width=10, fig.height=8, out.width='60%', fig.align='center'}
+pairs(vars_x, pch = 20, col = "grey")
+```
+
+]
+
+
+.pull-right[
+
+
+# ¿Qué buscamos aquí?
+
+- nubes muy alineadas entre dos variables,
+- patrones claros de dependencia,
+- predictores que parecen contar información muy parecida.
+
+### Lectura
+
+> Si dos variables casi “se mueven juntas”, el modelo puede confundirse al separar sus efectos.
+
+
+]
+
+---
+
+# ¿Cómo se refleja en el modelo?
+
+
+
+
+```{r}
+summary(modelo_multi)
+```
+
+
+---
+
+
+# ¿Cómo se refleja en el modelo?
+
+
+### Cosas a observar
+
+- signos de los coeficientes,
+- magnitud de los errores estándar,
+- valores p de cada predictor,
+- significancia global del modelo.
+
+### Posible patrón sospechoso
+
+Puede pasar que:
+
+- el modelo tenga buen \(R^2\),
+- el test F sea significativo,
+- pero algunos coeficientes individuales no lo sean.
+
+### ¿Qué podría estar pasando?
+
+> Las variables, en conjunto, explican bien a `mpg`,  
+> pero entre ellas se “pisan” parte de la información.
+
+---
+
+# Medida formal: VIF
+
+La medida más usada para evaluar multicolinealidad es el **Variance Inflation Factor** o **VIF**.
+
+### Idea del VIF
+
+El VIF mide cuánto se infla la varianza del coeficiente de una variable debido a su relación con otros predictores.
+
+Para calcularlo en R usamos el paquete `car`.
+
+
+```{r, message=FALSE}
+library(car)
+
+vif(modelo_multi)
+```
 
 
 
 ---
+
+# ¿Cómo interpretar el VIF?
+
+Reglas prácticas comunes:
+
+- `VIF = 1` → no hay problema
+- `VIF entre 1 y 5` → relación moderada, usualmente tolerable
+- `VIF > 5` → posible problema importante
+- `VIF > 10` → alerta fuerte de multicolinealidad
+
+### Frase sencilla
+
+> Entre mayor sea el VIF, más difícil es estimar con precisión el efecto individual de esa variable.
+
+### Ojo
+
+No son reglas absolutas, pero sí umbrales útiles para clase y práctica aplicada.
+
+---
+
+# ¿Por qué el VIF funciona?
+
+El VIF de una variable se basa en qué tan bien esa variable puede ser explicada por las demás.
+
+Formalmente:
+
+$$
+VIF_j = \frac{1}{1 - R_j^2}
+$$
+
+donde $(R_j^2)$ es el coeficiente de determinación al regredir la variable $(X_j)$ sobre las demás variables explicativas.
+
+### Interpretación
+
+- Si $(R_j^2)$ es alto, significa que $(X_j)$ está muy explicada por las otras.
+- Entonces el VIF crece.
+- Y eso indica más multicolinealidad.
+
+---
+
+# Ejemplo de interpretación en palabras
+
+Suponga que al calcular el VIF obtenemos algo así:
+
+```r
+horsepower   weight   displacement
+     8.5       10.2          7.8
+```
+
+### Interpretación posible
+
+- `weight` presenta el mayor problema de multicolinealidad.
+- `horsepower` y `displacement` también muestran niveles altos.
+- Esto sugiere que estas variables comparten mucha información.
+
+### Conclusión
+
+> El modelo puede seguir siendo útil para predecir,  
+> pero interpretar “el efecto puro” de cada predictor se vuelve más difícil.
+
+---
+
+# Ejemplo comparando modelos
+
+Podemos comparar un modelo más simple con uno más cargado.
+
+
+```{r, echo=TRUE, eval=TRUE}
+modelo_1 <- lm(mpg ~ horsepower, data = Auto)
+modelo_2 <- lm(mpg ~ horsepower + weight + displacement, data = Auto)
+
+summary(modelo_1)
+summary(modelo_2)
+vif(modelo_2)
+```
+
+
+
+
+### ¿Qué puede pasar?
+
+Al pasar de `modelo_1` a `modelo_2`:
+
+- el $(R^2)$ puede subir,
+- pero el coeficiente de `horsepower` puede cambiar bastante,
+- incluso en signo, magnitud o significancia.
+
+### Interpretación
+
+Eso puede ser una pista de que los predictores comparten información y el modelo tiene dificultad para separar efectos.
+
+---
+
+
+
+
+# Un ejemplo más claro: crear una variable casi redundante
+
+Para ver la idea con más claridad, podemos construir una variable muy parecida a otra.
+
+
+```{r, eval = TRUE, echo=TRUE}
+set.seed(123)
+
+Auto$weight2 <- Auto$weight + rnorm(nrow(Auto), sd = 20)
+
+modelo_colin <- lm(mpg ~ weight + weight2, data = Auto)
+summary(modelo_colin)
+library(car)
+vif(modelo_colin)
+```
+
+---
+
+
+# Un ejemplo más claro: crear una variable casi redundante
+
+Para ver la idea con más claridad, podemos construir una variable muy parecida a otra.
+
+
+```{r, eval = TRUE, echo=TRUE}
+set.seed(123)
+
+Auto$weight2 <- Auto$weight + rnorm(nrow(Auto), sd = 20)
+
+modelo_colin <- lm(mpg ~ weight + weight2, data = Auto)
+summary(modelo_colin)
+library(car)
+vif(modelo_colin)
+```
+
+---
+
+
+### ¿Qué esperamos?
+
+Como `weight2` es casi igual a `weight`, el modelo tendrá:
+
+- coeficientes inestables,
+- errores estándar grandes,
+- VIF altos.
+
+> Aquí la multicolinealidad se provoca a propósito para verla más claramente.
+
+---
+
+# ¿Qué suele pasar en este ejemplo?
+
+Aunque `weight` y `weight2` contienen casi la misma información:
+
+- el modelo puede no saber bien cómo repartir el efecto entre ambas,
+- una puede salir positiva y la otra negativa,
+- o ninguna salir significativa por separado.
+
+### Pero...
+
+Eso **no significa** que `weight` deje de importar.  
+Significa que el modelo no puede distinguir con claridad qué parte del efecto corresponde a cada una.
+
+### Idea clave
+
+> La multicolinealidad no destruye necesariamente la relación con (Y);  
+> destruye la precisión con que asignamos efectos individuales.
+
+---
+
+
+# ¿Qué consecuencias tiene la multicolinealidad?
+
+### 1. Errores estándar grandes
+Los coeficientes se estiman con menor precisión.
+
+### 2. Intervalos de confianza más amplios
+Cuesta afirmar con seguridad el efecto de cada variable.
+
+### 3. Inestabilidad de coeficientes
+Pequeños cambios en la muestra pueden cambiar bastante los resultados.
+
+### 4. Interpretación difícil
+Se vuelve complicado decir cuánto aporta cada predictor por separado.
+
+
+---
+
+# ¿Qué NO significa la multicolinealidad?
+
+No significa necesariamente que:
+
+- el modelo esté “mal hecho”,
+- haya que eliminar variables de inmediato,
+- el modelo no sirva para predecir,
+- o que los datos estén errados.
+
+### Más bien significa:
+
+> Hay variables que cuentan información parecida,  
+> y eso dificulta interpretar efectos individuales con claridad.
+
+---
+
+# ¿Cómo se puede manejar?
+
+Algunas estrategias frecuentes son:
+
+- eliminar variables redundantes,
+- conservar solo la más interpretable,
+- combinar variables relacionadas,
+- usar criterio teórico para seleccionar predictores,
+- centrar variables en algunos contextos,
+- usar técnicas como PCA, ridge o lasso si el objetivo es predicción.
+
+### Ojo
+
+La solución no siempre es “borrar variables”.
+
+Primero hay que pensar:
+
+> ¿quiero interpretar coeficientes o quiero predecir bien?
+
+---
+
+# Ejemplo simple de solución
+
+Suponga que `weight` y `displacement` están muy correlacionadas.
+
+Podríamos comparar:
+
+
+```{r, eval = TRUE, echo=TRUE}
+modelo_a <- lm(mpg ~ horsepower + weight + displacement, data = Auto)
+modelo_b <- lm(mpg ~ horsepower + weight, data = Auto)
+
+summary(modelo_a)
+summary(modelo_b)
+
+library(car)
+vif(modelo_a)
+vif(modelo_b)
+```
+
+---
+
+
+### ¿Qué buscar?
+
+- si el VIF baja en `modelo_b`,
+- si los coeficientes se vuelven más estables,
+- si la pérdida de ajuste es pequeña.
+
+### Lectura
+
+A veces un modelo más simple es más fácil de interpretar y casi no pierde capacidad explicativa.
+
+---
+
+
+
 
 class: inverse, center, middle
 background-color: #122140
