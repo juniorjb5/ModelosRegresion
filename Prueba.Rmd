@@ -1,0 +1,94 @@
+---
+author: Profe
+title: Modelo de regresión
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+library(plotly)
+library(tidyverse)
+library(readxl)
+
+Salaries <- read_excel("Datos/Salaries.xlsx")
+Salaries
+View(Salaries)
+
+
+
+
+```
+
+
+
+# Aspecto gráfico
+
+```{r}
+
+
+
+grafico1<- ggplot(Salaries, aes(x = yrs.service, y = salary, color = sex) )  +
+  geom_point()
+
+ggplotly(grafico1)
+
+
+
+```
+
+Este gráfico balballablblablabalballab
+
+
+
+# Tabla
+
+
+```{r}
+
+knitr::kable( head(Salaries,10) )
+
+```
+
+
+
+
+```{r}
+
+rmarkdown::paged_table(Salaries)
+
+```
+
+
+
+
+```{r}
+library(gt)
+library(tidyverse)
+
+
+Salaries %>%
+  head(11) %>% 
+  gt() %>% 
+  tab_header(
+    title = "Base de datos Salarios",
+    subtitle = "Diplomado en gestión de datos"
+  )
+```
+
+
+
+
+```{r}
+library(DT)
+datatable( Salaries)
+```
+
+
+

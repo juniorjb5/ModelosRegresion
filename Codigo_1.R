@@ -346,13 +346,13 @@ library(tidyverse)
 
 
 grafico1<- ggplot(iris, aes(x = Sepal.Length, y = Sepal.Width) )  +
-  geom_point()+
-  theme_dark()   +
-  labs(x = "Longitud" , y = "Ancho")
-
+  geom_point()
 
 grafico1
 
+library(plotly)
+
+ggplotly(grafico1)
 
 
 
